@@ -1,60 +1,60 @@
 # nextcloud-ffmpeg
 
-Eigenes Nextcloud-Image mit `ffmpeg`, damit Nextcloud Vorschaubilder für Videos
-erzeugen kann. Das offizielle Image bringt kein ffmpeg mit, der Preview-Provider
-`OC\Preview\Movie` bleibt dort also wirkungslos.
+Custom Nextcloud image with `ffmpeg`, so Nextcloud can generate video
+thumbnails. The official image doesn't ship ffmpeg, so the preview provider
+`OC\Preview\Movie` stays non-functional there.
 
-Gebaut wird per GitHub Action, gepusht nach Docker Hub:
+Built via GitHub Action, pushed to Docker Hub:
 [`sony2k20/nextcloud-ffmpeg`](https://hub.docker.com/r/sony2k20/nextcloud-ffmpeg)
 
-## Inhalt
+## Contents
 
-| Datei | Zweck |
+| File | Purpose |
 | --- | --- |
-| `Dockerfile` | Basis-Image + ffmpeg, Version über Build-Arg `NEXTCLOUD_VERSION` |
-| `.github/workflows/build-nextcloud-image.yml` | Build & Push, Version als Eingabe |
+| `Dockerfile` | Base image + ffmpeg, version via build arg `NEXTCLOUD_VERSION` |
+| `.github/workflows/build-nextcloud-image.yml` | Build & push, version as input |
 
-## Einmalige Einrichtung
+## One-time setup
 
-1. Auf Docker Hub ein Personal Access Token mit Scope **Read & Write** erzeugen
+1. On Docker Hub, create a Personal Access Token with scope **Read & Write**
    (Account Settings → Personal access tokens).
-2. Im GitHub-Repo unter *Settings → Secrets and variables → Actions* anlegen:
+2. In the GitHub repo under *Settings → Secrets and variables → Actions*, add:
 
-   | Typ | Name | Wert |
+   | Type | Name | Value |
    | --- | --- | --- |
    | Secret | `DOCKERHUB_USERNAME` | `sony2k20` |
-   | Secret | `DOCKERHUB_TOKEN` | das Token aus Schritt 1 |
-   | Variable | `NEXTCLOUD_VERSION` | z.B. `31-apache` (optional) |
+   | Secret | `DOCKERHUB_TOKEN` | the token from step 1 |
+   | Variable | `NEXTCLOUD_VERSION` | e.g. `31-apache` (optional) |
 
-Die Variable braucht nur der wöchentliche Cron-Lauf, der ohne manuelle Eingabe
-startet. Das Docker-Hub-Repository muss nicht vorher existieren – beim ersten
-Push wird es automatisch als *public* angelegt. Soll es privat sein, vorher auf
-Docker Hub anlegen.
+The variable is only needed for the weekly cron run, which starts without
+manual input. The Docker Hub repository doesn't need to exist beforehand –
+it's created automatically as *public* on the first push. If it should be
+private, create it on Docker Hub first.
 
-## Image bauen
+## Building the image
 
 *Actions → Build Nextcloud Image → Run workflow*
 
-| Eingabe | Bedeutung | Default |
+| Input | Meaning | Default |
 | --- | --- | --- |
-| `nextcloud_version` | Tag des offiziellen Images, exakt wie auf Docker Hub | `31-apache` |
-| `image_name` | Repository-Name unter `sony2k20/` | `nextcloud-ffmpeg` |
-| `tag_latest` | zusätzlich `:latest` setzen | `true` |
-| `platforms` | Zielarchitekturen | `linux/amd64` |
-| `push` | pushen oder nur bauen (Testlauf) | `true` |
+| `nextcloud_version` | Tag of the official image, exactly as on Docker Hub | `31-apache` |
+| `image_name` | Repository name under `sony2k20/` | `nextcloud-ffmpeg` |
+| `tag_latest` | also set `:latest` | `true` |
+| `platforms` | Target architectures | `linux/amd64` |
+| `push` | push or build only (test run) | `true` |
 
-Gültige Werte für `nextcloud_version` sind alle Tags des offiziellen Images,
-also z.B. `31-apache`, `31.0.5-apache`, `30-fpm`, `31-fpm-alpine`. Das
-Dockerfile erkennt selbst, ob es sich um eine Debian- oder Alpine-Variante
-handelt, und nutzt entsprechend `apt-get` oder `apk`.
+Valid values for `nextcloud_version` are all tags of the official image,
+e.g. `31-apache`, `31.0.5-apache`, `30-fpm`, `31-fpm-alpine`. The Dockerfile
+automatically detects whether it's a Debian- or Alpine-based variant and uses
+`apt-get` or `apk` accordingly.
 
-`linux/arm64` wird auf dem Runner per QEMU emuliert. Das funktioniert, der
-Paket-Installationsschritt dauert dabei aber ein Vielfaches – nur wählen, wenn
-tatsächlich ARM-Nodes im Cluster stehen.
+`linux/arm64` is emulated on the runner via QEMU. This works, but the package
+installation step then takes several times longer – only choose it if there
+are actually ARM nodes in the cluster.
 
-### Erzeugte Tags
+### Generated tags
 
-Bei Eingabe `31.0.5-apache` entstehen:
+Given the input `31.0.5-apache`, the following are created:
 
 ```
 sony2k20/nextcloud-ffmpeg:31.0.5-apache
@@ -62,19 +62,19 @@ sony2k20/nextcloud-ffmpeg:31.0.5-apache-20260817
 sony2k20/nextcloud-ffmpeg:latest
 ```
 
-Der Datums-Tag ist wichtig: Der wöchentliche Rebuild derselben Nextcloud-Version
-überschreibt sonst den bestehenden Tag, und im Cluster lässt sich nicht mehr
-feststellen, welches Build gerade läuft. Für produktive Deployments deshalb den
-Datums-Tag pinnen, nicht `latest`.
+The date tag matters: the weekly rebuild of the same Nextcloud version would
+otherwise overwrite the existing tag, and in the cluster it would no longer be
+possible to tell which build is currently running. For production deployments,
+pin the date tag rather than `latest`.
 
-### Lokal bauen
+### Building locally
 
 ```bash
 docker build --build-arg NEXTCLOUD_VERSION=31-apache -t nextcloud-ffmpeg:test .
 docker run --rm --entrypoint /usr/bin/ffmpeg nextcloud-ffmpeg:test -version
 ```
 
-## Verwendung im Helm-Chart
+## Usage in the Helm chart
 
 ```yaml
 image:
@@ -102,14 +102,14 @@ nextcloud:
       );
 ```
 
-Sobald `enabledPreviewProviders` gesetzt ist, ersetzt die Liste die Defaults
-komplett – alles eintragen, was aktiv sein soll.
+As soon as `enabledPreviewProviders` is set, this list completely replaces
+the defaults – add everything that should be active.
 
-Der Cron-Sidecar bzw. das Cron-CronJob des Charts nutzt automatisch dasselbe
-Image und hat ffmpeg damit ebenfalls zur Verfügung. Das ist nötig, weil die App
-*Preview Generator* (`occ preview:pre-generate`) dort läuft.
+The chart's cron sidecar/CronJob automatically uses the same image and thus
+also has ffmpeg available. This is needed because the *Preview Generator* app
+(`occ preview:pre-generate`) runs there.
 
-## Prüfen, ob es funktioniert
+## Checking that it works
 
 ```bash
 kubectl exec -it deploy/nextcloud -c nextcloud -- ffmpeg -version
@@ -117,14 +117,14 @@ kubectl exec -it deploy/nextcloud -c nextcloud -- \
   php occ config:system:get preview_ffmpeg_path
 ```
 
-Wenn Vorschauen trotzdem fehlen: Nextcloud erzeugt sie standardmäßig erst beim
-ersten Aufruf. Für bestehende Bestände die App *Preview Generator* installieren
-und einmalig `occ preview:generate-all` laufen lassen – das kann bei vielen
-Videos lange dauern und ordentlich CPU ziehen.
+If previews are still missing: by default, Nextcloud only generates them on
+first access. For existing content, install the *Preview Generator* app and
+run `occ preview:generate-all` once – this can take a long time and use a lot
+of CPU for many videos.
 
-## Wartung
+## Maintenance
 
-Der Workflow läuft montags um 04:00 UTC automatisch und baut die in der
-Repository-Variable `NEXTCLOUD_VERSION` hinterlegte Version neu, damit
-Security-Updates des Basis-Images und der Distribution ins Image kommen. Nach
-einem Nextcloud-Upgrade die Variable auf die neue Version setzen.
+The workflow runs automatically every Monday at 04:00 UTC and rebuilds the
+version stored in the repository variable `NEXTCLOUD_VERSION`, so that
+security updates of the base image and distribution make it into the image.
+After a Nextcloud upgrade, set the variable to the new version.

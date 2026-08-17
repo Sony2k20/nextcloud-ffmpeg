@@ -4,22 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       nextcloud_version:
-        description: "Nextcloud Base-Image Tag (z.B. 33.0.7)"
+        description: "Nextcloud base image tag (e.g. 33.0.7)"
         required: true
         type: string
         default: "33.0.7"
       image_name:
-        description: "Docker Hub Repository unter sony2k20"
+        description: "Docker Hub repository under sony2k20"
         required: false
         type: string
         default: "nextcloud-ffmpeg"
       tag_latest:
-        description: "Zusaetzlich als :latest taggen"
+        description: "Also tag as :latest"
         required: false
         type: boolean
         default: true
       platforms:
-        description: "Ziel-Plattformen"
+        description: "Target platforms"
         required: false
         type: choice
         default: "linux/amd64"
@@ -28,7 +28,7 @@ on:
           - "linux/arm64"
           - "linux/amd64,linux/arm64"
       push:
-        description: "In die Registry pushen"
+        description: "Push to the registry"
         required: false
         type: boolean
         default: true
@@ -43,37 +43,37 @@ jobs:
       contents: read
 
     steps:
-      - name: Version und Image-Namen aufloesen
+      - name: Resolve version and image name
         id: version
         run: |
           VERSION="${{ inputs.nextcloud_version || vars.NEXTCLOUD_VERSION || '33.0.7' }}"
           NAME="${{ inputs.image_name || vars.IMAGE_NAME || 'nextcloud-ffmpeg' }}"
           if [ -z "$VERSION" ]; then
-            echo "Keine Nextcloud-Version gesetzt." >&2
+            echo "No Nextcloud version set." >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "image=${{ env.DOCKERHUB_USER }}/$NAME" >> "$GITHUB_OUTPUT"
-          echo "Baue nextcloud:$VERSION -> ${{ env.DOCKERHUB_USER }}/$NAME"
+          echo "Building nextcloud:$VERSION -> ${{ env.DOCKERHUB_USER }}/$NAME"
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: QEMU einrichten
+      - name: Set up QEMU
         if: contains(inputs.platforms || 'linux/amd64', 'arm64')
         uses: docker/setup-qemu-action@v3
 
-      - name: Buildx einrichten
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: An Docker Hub anmelden
+      - name: Log in to Docker Hub
         if: ${{ inputs.push != false }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Tags und Labels erzeugen
+      - name: Generate tags and labels
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -84,10 +84,10 @@ jobs:
             type=raw,value=latest,enable=${{ inputs.tag_latest != false }}
           labels: |
             org.opencontainers.image.title=nextcloud-ffmpeg
-            org.opencontainers.image.description=Nextcloud mit ffmpeg fuer Video-Previews
+            org.opencontainers.image.description=Nextcloud with ffmpeg for video previews
             org.opencontainers.image.base.name=docker.io/library/nextcloud:${{ steps.version.outputs.version }}
 
-      - name: Image bauen und pushen
+      - name: Build and push image
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -103,19 +103,19 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      - name: Smoke-Test (ffmpeg vorhanden?)
+      - name: Smoke test (ffmpeg present?)
         if: ${{ inputs.push != false && contains(inputs.platforms || 'linux/amd64', 'amd64') }}
         run: |
           IMAGE="${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}"
           docker run --rm --entrypoint /usr/bin/ffmpeg "$IMAGE" -version
 
-      - name: Zusammenfassung
+      - name: Summary
         run: |
           {
-            echo "### Nextcloud Image gebaut"
+            echo "### Nextcloud image built"
             echo ""
             echo "- Base: \`nextcloud:${{ steps.version.outputs.version }}\`"
-            echo "- Plattformen: \`${{ inputs.platforms || 'linux/amd64' }}\`"
+            echo "- Platforms: \`${{ inputs.platforms || 'linux/amd64' }}\`"
             echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
             echo ""
             echo "Tags:"
