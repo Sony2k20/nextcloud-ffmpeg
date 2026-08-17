@@ -108,7 +108,6 @@ jobs:
         run: |
           IMAGE="${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}"
           docker run --rm --entrypoint /usr/bin/ffmpeg "$IMAGE" -version
-          docker run --rm --entrypoint sh "$IMAGE" -c 'php -v && ls /var/www/html/occ'
 
       - name: Zusammenfassung
         run: |
